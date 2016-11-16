@@ -1,4 +1,5 @@
-﻿using EloBuddy;
+﻿using System;
+using EloBuddy;
 using EloBuddy.SDK;
 using EloBuddy.SDK.Enumerations;
 using EloBuddy.SDK.Events;
@@ -32,12 +33,12 @@ namespace LelBlanc
         /// <summary>
         /// Contains All Active Spells
         /// </summary>
-        public static Spell.Active WReturn, RReturn;
+        public static Spell.Active WReturn, RActive, RReturn;
 
         /// <summary>
         /// Contains All Targeted Spells
         /// </summary>
-        public static Spell.Targeted Q, QUltimate, Ignite;
+        public static Spell.Targeted Q, QUltimate, RTargeted, Ignite;
 
         /// <summary>
         /// Contains All Skillshots
@@ -74,32 +75,36 @@ namespace LelBlanc
             }
 
             Q = new Spell.Targeted(SpellSlot.Q, 700);
-            
-            W = new Spell.Skillshot(SpellSlot.W, 600, SkillShotType.Circular, 0, 1450, 250)
+
+            W = new Spell.Skillshot(SpellSlot.W, 600, SkillShotType.Circular, 0, 1600, 260)
             {
                 AllowedCollisionCount = -1
             };
 
-            WReturn = new Spell.Active(SpellSlot.W);
+            WReturn = new Spell.Active(SpellSlot.W) {CastDelay = 250};
 
             RReturn = new Spell.Active(SpellSlot.R);
 
-            E = new Spell.Skillshot(SpellSlot.E, 950, SkillShotType.Linear, 0, 1750, 55)
+            E = new Spell.Skillshot(SpellSlot.E, 950, SkillShotType.Linear, 250, 1750, 55)
             {
                 AllowedCollisionCount = 0
             };
 
-            QUltimate = new Spell.Targeted(SpellSlot.R, 700);
+            QUltimate = new Spell.Targeted(SpellSlot.Q, 700);
 
-            WUltimate = new Spell.Skillshot(SpellSlot.R, 600, SkillShotType.Circular, 0, 1450, 250)
+            WUltimate = new Spell.Skillshot(SpellSlot.W, 600, SkillShotType.Circular, 0, 1600, 250)
             {
                 AllowedCollisionCount = -1
             };
 
-            EUltimate = new Spell.Skillshot(SpellSlot.R, 950, SkillShotType.Linear, 0, 1750, 55)
+            EUltimate = new Spell.Skillshot(SpellSlot.E, 950, SkillShotType.Linear, 250, 1750, 55)
             {
                 AllowedCollisionCount = 0
             };
+
+            RActive = new Spell.Active(SpellSlot.R);
+
+            RTargeted = new Spell.Targeted(SpellSlot.R, int.MaxValue);
 
             if (Extension.HasSpell("summonerdot"))
             {
@@ -176,16 +181,18 @@ namespace LelBlanc
         {
             if (!sender.IsMe) return;
 
-            if (args.SData.Name.ToLower() == "leblancslide")
+            if (args.SData.Name.ToLower() == "leblancw")
             {
-                LastWPosition = args.Start;
-                LastWEndPosition = args.End;
-            }
-
-            if (args.SData.Name.ToLower() == "leblancslidem")
-            {
-                LastWUltimatePosition = args.Start;
-                LastWUltimateEndPosition = args.End;
+                if (Extension.IsUsingUlt)
+                {
+                    LastWUltimatePosition = args.Start;
+                    LastWUltimateEndPosition = args.End;
+                }
+                else
+                {
+                    LastWPosition = args.Start;
+                    LastWEndPosition = args.End;
+                }
             }
         }
 
@@ -202,12 +209,12 @@ namespace LelBlanc
             if (Config.KillStealMenu["toggle"].Cast<CheckBox>().CurrentValue)
             {
                 if (!LastWEndPosition.IsZero &&
-                    Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslide")
+                    Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancw")
                 {
                     LastWEndPosition = Vector3.Zero;
                 }
                 if (!LastWUltimateEndPosition.IsZero &&
-                    Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancslidem")
+                    Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() != "leblancrwreturn")
                 {
                     LastWUltimatePosition = Vector3.Zero;
                 }
@@ -217,53 +224,6 @@ namespace LelBlanc
 
                     if (Modes.KillSteal.ResetW == false)
                         LastWEndPosition = Vector3.Zero;
-
-                    #region Old Code
-
-                    /*if (!E.IsReady())
-                    {
-                        var eEnemies =
-                            EntityManager.Heroes.Enemies.Where(t => t.IsValidTarget(E.Range) && Extension.IsBeingE(t))
-                                .ToArray();
-
-                        if (eEnemies.Any())
-                        {
-                            var shouldUse = eEnemies.Any(t => LastWPosition.Distance(t) <= E.Range);
-
-                            if (!shouldUse) return;
-
-                            if (WReturn.IsReady() &&
-                                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslidereturn")
-                            {
-                                WReturn.Cast();
-                                LastWEndPosition = Vector3.Zero;
-                                Modes.KillSteal.ResetW = false;
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            if (WReturn.IsReady() &&
-                                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslidereturn")
-                            {
-                                WReturn.Cast();
-                                LastWEndPosition = Vector3.Zero;
-                                Modes.KillSteal.ResetW = false;
-                                return;
-                            }
-                        }
-                    }
-
-                    if (WReturn.IsReady() &&
-                        Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslidereturn")
-                    {
-                        WReturn.Cast();
-                        LastWEndPosition = Vector3.Zero;
-                        Modes.KillSteal.ResetW = false;
-                        return;
-                    }*/
-
-                    #endregion
                 }
                 if (Modes.KillSteal.ResetW && Player.Instance.ServerPosition.IsInRange(LastWUltimateEndPosition, 100))
                 {
@@ -271,54 +231,6 @@ namespace LelBlanc
 
                     if (Modes.KillSteal.ResetW == false)
                         LastWEndPosition = Vector3.Zero;
-
-                    #region Old Code
-
-                    /*if (!E.IsReady())
-                    {
-                        var eEnemies =
-                            EntityManager.Heroes.Enemies.Where(t => t.IsValidTarget(E.Range) && Extension.IsBeingE(t))
-                                .ToArray();
-
-                        if (eEnemies.Any())
-                        {
-                            var shouldUse = eEnemies.Any(t => LastWUltimatePosition.Distance(t) <= E.Range);
-
-                            if (!shouldUse) return;
-
-                            if (RReturn.IsReady() &&
-                                Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancslidereturnm")
-                            {
-                                RReturn.Cast();
-                                LastWEndPosition = Vector3.Zero;
-                                Modes.KillSteal.ResetW = false;
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            if (RReturn.IsReady() &&
-                                Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancslidereturnm")
-                            {
-                                RReturn.Cast();
-                                LastWUltimateEndPosition = Vector3.Zero;
-                                Modes.KillSteal.ResetW = false;
-                                return;
-                            }
-                        }
-                    }
-
-
-                    if (RReturn.IsReady() &&
-                        Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancslidereturnm")
-                    {
-                        RReturn.Cast();
-                        LastWUltimateEndPosition = Vector3.Zero;
-                        Modes.KillSteal.ResetW = false;
-                        return;
-                    }*/
-
-                    #endregion
                 }
 
                 Modes.KillSteal.Execute();
@@ -337,7 +249,7 @@ namespace LelBlanc
             }
             if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.JungleClear))
             {
-                Modes.JungleClear.Execute();
+                //Modes.JungleClear.Execute();
             }
         }
     }

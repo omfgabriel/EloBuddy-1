@@ -7,7 +7,7 @@ namespace LelBlanc.Modes
 {
     internal class JungleClear
     {
-        public static bool UseQ => Config.JungleClearMenu["useQ"].Cast<CheckBox>().CurrentValue;
+        /*public static bool UseQ => Config.JungleClearMenu["useQ"].Cast<CheckBox>().CurrentValue;
 
         public static bool UseW => Config.JungleClearMenu["useW"].Cast<CheckBox>().CurrentValue;
 
@@ -25,7 +25,7 @@ namespace LelBlanc.Modes
 
         public static void Execute()
         {
-            if (Player.Instance.Spellbook.GetSpell(SpellSlot.R).Level < 1)
+            /*if (Player.Instance.Spellbook.GetSpell(SpellSlot.R).Level < 1)
             {
                 Pre6JungleClear();
             }
@@ -156,6 +156,6 @@ namespace LelBlanc.Modes
                     Program.EUltimate.Cast(minion);
                 }
             }
-        }
+        }*/
     }
 }

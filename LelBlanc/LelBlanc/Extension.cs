@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using EloBuddy;
 using EloBuddy.SDK;
 
@@ -7,12 +8,17 @@ namespace LelBlanc
     internal class Extension
     {
         /// <summary>
+        /// Leblanc Tether Range
+        /// </summary>
+        public const int TetherRange = 1000;
+
+        /// <summary>
         /// Checks if Player should use W to return.
         /// </summary>
         public static bool LogicReturn(bool w2 = false)
         {
             var enemiesBeingE =
-                EntityManager.Heroes.Enemies.Where(t => t.IsValidTarget(Program.E.Range) && IsBeingE(t))
+                EntityManager.Heroes.Enemies.Where(t => t.IsValidTarget(TetherRange) && IsBeingE(t))
                     .ToArray();
 
             if (enemiesBeingE.Any())
@@ -40,7 +46,7 @@ namespace LelBlanc
             if (w2)
             {
                 if (Program.RReturn.IsReady() &&
-                    Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() != "leblancslidereturnm")
+                    Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() != "leblancrwreturn")
                 {
                     Program.RReturn.Cast();
                     return true;
@@ -49,7 +55,7 @@ namespace LelBlanc
             }
 
             if (Program.WReturn.IsReady() &&
-                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslidereturn")
+                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancwreturn")
             {
                 Program.WReturn.Cast();
                 return true;
@@ -68,14 +74,24 @@ namespace LelBlanc
         }
 
         /// <summary>
+        /// Contains the list of currently marked targets.
+        /// </summary>
+        //public static List<Tuple<bool, Obj_AI_Base>> MarkedTargets = new List<Tuple<bool, Obj_AI_Base>>();
+
+        /// <summary>
         /// Checks to see if the target is being silenced
         /// </summary>
         /// <param name="target">The Target</param>
         /// <returns></returns>
         public static bool IsMarked(Obj_AI_Base target)
         {
-            return target.HasBuff("LeblancMarkOfSilence") || target.HasBuff("LeblancMarkOfSilenceM");
+            return target.HasBuff("LeblancPMark") && (Environment.TickCount - target.GetBuff("LeblancPMark").StartTime > 1500f);
         }
+
+        /// <summary>
+        /// Returns if player is using ultimate
+        /// </summary>
+        public static bool IsUsingUlt => Player.Instance.HasBuff("LeblancR");
 
         /// <summary>
         /// Checks to see if the target is being E'ed
@@ -84,11 +100,58 @@ namespace LelBlanc
         /// <returns></returns>
         public static bool IsBeingE(Obj_AI_Base target)
         {
-            return target.HasBuff("LeblancShackleBeam") || target.HasBuff("LeblancShackleBeamM");
+            return target.HasBuff("LeblancEBeam") || target.HasBuff("LeblancREBeam");
+        }
+
+        /// <summary>
+        /// Checks to see if target has been successfully rooted
+        /// </summary>
+        /// <param name="target"></param>
+        /// <returns></returns>
+        public static bool IsRootE(Obj_AI_Base target)
+        {
+            return target.HasBuff("LeblancERoot") || target.HasBuff("LeblancRERoot");
         }
 
         internal class DamageLibrary
         {
+            /// <summary>
+            /// Calculates Damage for LeBlanc's Ultimates
+            /// </summary>
+            /// <param name="target"></param>
+            /// <param name="qr"></param>
+            /// <param name="wr"></param>
+            /// <param name="er"></param>
+            /// <returns></returns>
+            public static float CalculateDamageUltimate(Obj_AI_Base target, bool qr, bool wr, bool er)
+            {
+                var totaldamage = 0f;
+
+                if (target == null || !IsUsingUlt) return totaldamage;
+                    
+                if (qr)
+                {
+                    totaldamage += QUltimateDamage(target);
+                }
+
+                if (wr)
+                {
+                    totaldamage += WUltimateDamage(target);
+                }
+
+                if (er)
+                {
+                    totaldamage += EUltimateDamage(target);
+                }
+
+                if (IsMarked(target))
+                {
+                    totaldamage += MarkDamage(target);
+                }
+
+                return totaldamage;
+            }
+
             /// <summary>
             /// Calculates Damage for LeBlanc
             /// </summary>
@@ -97,6 +160,7 @@ namespace LelBlanc
             /// <param name="w">The W</param>
             /// <param name="e">The E</param>
             /// <param name="r">The R</param>
+            /// <param name="ignite"></param>
             /// <returns></returns>
             public static float CalculateDamage(Obj_AI_Base target, bool q, bool w, bool e, bool r, bool ignite)
             {
@@ -104,62 +168,42 @@ namespace LelBlanc
 
                 if (target == null) return totaldamage;
 
-                if (q && Program.Q.IsReady())
+                if (!IsUsingUlt)
                 {
-                    totaldamage += QDamage(target);
-                }
-
-                if (w && Program.W.IsReady() &&
-                    Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslide")
-                {
-                    totaldamage = WDamage(target);
-
-                    if (q && Program.Q.IsReady() || IsMarked(target))
+                    if (q && Program.Q.IsReady())
                     {
                         totaldamage += QDamage(target);
                     }
-                }
 
-                if (e && Program.E.IsReady())
-                {
-                    totaldamage += EDamage(target);
-
-                    if (q && Program.Q.IsReady() || IsMarked(target))
+                    if (w && Program.W.IsReady() &&
+                        Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancw")
                     {
-                        totaldamage += QDamage(target);
+                        totaldamage = WDamage(target);
+                    }
+
+                    if (e && Program.E.IsReady())
+                    {
+                        totaldamage += EDamage(target);
+                    }
+
+                    if (r && Program.RActive.IsReady())
+                    {
+                        totaldamage += (QUltimateDamage(target) + WUltimateDamage(target) + EUltimateDamage(target)) / 3;
+                    }
+
+                    if ((Program.Q.IsReady() || Program.W.IsReady() || Program.E.IsReady() || Program.RActive.IsReady()) && IsMarked(target))
+                    {
+                        totaldamage += MarkDamage(target);
                     }
                 }
 
-                if (r && Program.QUltimate.IsReady() &&
-                    Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancchaosorbm")
+                if (r && IsUsingUlt)
                 {
-                    totaldamage += QDamage(target);
+                    totaldamage += (QUltimateDamage(target) + WUltimateDamage(target) + EUltimateDamage(target))/3;
 
-                    if (q && Program.Q.IsReady() || IsMarked(target))
+                    if (IsMarked(target))
                     {
-                        totaldamage += QDamage(target);
-                    }
-                }
-
-                if (r && Program.WUltimate.IsReady() &&
-                    Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancslidem")
-                {
-                    totaldamage += WrDamage(target);
-
-                    if (q && Program.Q.IsReady() || IsMarked(target))
-                    {
-                        totaldamage += QDamage(target);
-                    }
-                }
-
-                if (r && Program.EUltimate.IsReady() &&
-                    Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancsoulshacklem")
-                {
-                    totaldamage += ErDamage(target);
-
-                    if (q && Program.Q.IsReady() || IsMarked(target))
-                    {
-                        totaldamage += QDamage(target);
+                        totaldamage += MarkDamage(target);
                     }
                 }
 
@@ -173,6 +217,16 @@ namespace LelBlanc
             }
 
             /// <summary>
+            /// Calculates the Damage done with the Mark
+            /// </summary>
+            /// <param name="target"></param>
+            /// <returns></returns>
+            private static float MarkDamage(Obj_AI_Base target)
+            {
+                return Player.Instance.CalculateDamageOnUnit(target, DamageType.Magical, 25 + 15*Player.Instance.Level + Player.Instance.TotalMagicalDamage*0.8f);
+            }
+
+            /// <summary>
             /// Calculates the Damage done with Q
             /// </summary>
             /// <param name="target">The Target</param>
@@ -180,7 +234,7 @@ namespace LelBlanc
             private static float QDamage(Obj_AI_Base target)
             {
                 return Player.Instance.CalculateDamageOnUnit(target, DamageType.Magical,
-                    new[] {0, 55, 80, 105, 130, 155}[Program.Q.Level] + (Player.Instance.TotalMagicalDamage*0.4f));
+                    new[] {0, 55, 80, 105, 130, 155}[Program.Q.Level] + (Player.Instance.TotalMagicalDamage*0.5f));
             }
 
             /// <summary>
@@ -206,23 +260,39 @@ namespace LelBlanc
             }
 
             /// <summary>
-            /// Calculates the Damage done with R
+            /// Returns the Damage of Q Ultimate Form
             /// </summary>
-            /// <returns>Returns the Damage done with R</returns>
-            private static float WrDamage(Obj_AI_Base target)
+            /// <param name="target"></param>
+            /// <returns></returns>
+            private static float QUltimateDamage(Obj_AI_Base target)
             {
                 return Player.Instance.CalculateDamageOnUnit(target, DamageType.Magical,
-                    new[] {0, 150, 300, 450}[Program.WUltimate.Level] + (Player.Instance.TotalMagicalDamage*0.9f));
+                    new[] {0, 150, 275, 400}[Program.RActive.Level] +
+                    (Player.Instance.TotalMagicalDamage*0.6f));
             }
 
             /// <summary>
-            /// Calculates the Damage done with R
+            /// Returns the Damage of W Ultimate Form
             /// </summary>
-            /// <returns>Returns the Damage done with R</returns>
-            private static float ErDamage(Obj_AI_Base target)
+            /// <param name="target"></param>
+            /// <returns></returns>
+            private static float WUltimateDamage(Obj_AI_Base target)
             {
                 return Player.Instance.CalculateDamageOnUnit(target, DamageType.Magical,
-                    new[] {0, 100, 200, 300}[Program.EUltimate.Level] + (Player.Instance.TotalMagicalDamage*0.6f));
+                    new[] {0, 125, 225, 325}[Program.RActive.Level] +
+                    (Player.Instance.TotalMagicalDamage*0.5f));
+            }
+
+            /// <summary>
+            /// Returns the Damage of E Ultimate Form
+            /// </summary>
+            /// <param name="target"></param>
+            /// <returns></returns>
+            private static float EUltimateDamage(Obj_AI_Base target)
+            {
+                return Player.Instance.CalculateDamageOnUnit(target, DamageType.Magical,
+                    new[] {0, 100, 160, 220}[Program.RActive.Level] +
+                    (Player.Instance.TotalMagicalDamage*0.4f));
             }
         }
     }

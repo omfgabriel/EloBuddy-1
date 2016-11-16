@@ -7,6 +7,8 @@ namespace LelBlanc.Modes
 {
     internal class KillSteal
     {
+        #region Properties
+
         public static bool UseQ => Config.KillStealMenu["useQ"].Cast<CheckBox>().CurrentValue;
 
         public static bool UseW => Config.KillStealMenu["useW"].Cast<CheckBox>().CurrentValue;
@@ -29,6 +31,10 @@ namespace LelBlanc.Modes
 
         public static bool ResetW { get; set; }
 
+        #endregion
+
+        #region Methods
+
         public static void Execute()
         {
             #region Ignite
@@ -39,7 +45,8 @@ namespace LelBlanc.Modes
                     EntityManager.Heroes.Enemies.Where(
                         t =>
                             t.IsValidTarget(Program.Ignite.Range) && !t.HasUndyingBuff() &&
-                            Extension.DamageLibrary.CalculateDamage(t, false, false, false, false, true) >= (UsePrediction ? Prediction.Health.GetPrediction(t, 5000) : t.Health));
+                            Extension.DamageLibrary.CalculateDamage(t, false, false, false, false, true) >=
+                            (UsePrediction ? Prediction.Health.GetPrediction(t, 5000) : t.Health));
                 var igniteEnemy = TargetSelector.GetTarget(ignitableEnemies, DamageType.True);
 
                 if (igniteEnemy != null)
@@ -56,13 +63,15 @@ namespace LelBlanc.Modes
 
             #endregion
 
-            if (Player.Instance.IsUnderTurret() || !Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.None)) return;
+            if (Player.Instance.IsUnderTurret() || Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo) || Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Harass))
+                return;
 
             var killableEnemies =
                 EntityManager.Heroes.Enemies.Where(
                     t =>
                         t.IsValidTarget() && !t.HasUndyingBuff() &&
-                        Extension.DamageLibrary.CalculateDamage(t, UseQ, UseW, UseE, UseQr, false) >= t.Health);
+                        Extension.DamageLibrary.CalculateDamage(t, UseQ, UseW, UseE, false, false) +
+                        Extension.DamageLibrary.CalculateDamageUltimate(t, true, false, false) >= t.Health);
             var target = TargetSelector.GetTarget(killableEnemies, DamageType.Magical);
 
             if (target == null) return;
@@ -87,10 +96,19 @@ namespace LelBlanc.Modes
                 CastE(target);
             }
 
-            else if (target.Health <=
-                     Extension.DamageLibrary.CalculateDamage(target, false, false, false, true, false))
+            else if (target.Health <= Extension.DamageLibrary.CalculateDamageUltimate(target, true, false, false))
             {
-                CastR(target, true);
+                CastR(target, true, SpellSlot.Q);
+            }
+
+            else if (target.Health <= Extension.DamageLibrary.CalculateDamageUltimate(target, false, true, false))
+            {
+                CastR(target, true, SpellSlot.W);
+            }
+
+            else if (target.Health <= Extension.DamageLibrary.CalculateDamageUltimate(target, false, false, true))
+            {
+                CastR(target, true, SpellSlot.E);
             }
 
             else if (UseQ && UseW &&
@@ -110,7 +128,7 @@ namespace LelBlanc.Modes
                         Core.DelayAction(() =>
                         {
                             if (target.IsDead &&
-                                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslidereturn")
+                                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancwreturn")
                             {
                                 ResetW = true;
                             }
@@ -121,7 +139,8 @@ namespace LelBlanc.Modes
 
             else if (UseQ && (UseQr || UseWr || UseEr) &&
                      target.Health <=
-                     Extension.DamageLibrary.CalculateDamage(target, true, false, false, true, false))
+                     Extension.DamageLibrary.CalculateDamage(target, true, false, false, false, false) +
+                     Extension.DamageLibrary.CalculateDamageUltimate(target, true, false, false))
             {
                 if (!Program.Q.IsReady() || !Program.RReturn.IsReady()) return;
 
@@ -130,7 +149,7 @@ namespace LelBlanc.Modes
                 {
                     if (!target.IsDead)
                     {
-                        CastR(target, UseReturn2);
+                        CastR(target, UseReturn2, SpellSlot.Q);
                     }
                 }, Program.Q.CastDelay);
             }
@@ -158,7 +177,7 @@ namespace LelBlanc.Modes
                                 ResetW = UseReturn;
                             }
                             else if (Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() ==
-                                     "leblancslidereturn")
+                                     "leblancwreturn")
                             {
                                 ResetW = UseReturn;
                             }
@@ -175,16 +194,14 @@ namespace LelBlanc.Modes
                 CastQ(target);
                 Core.DelayAction(() =>
                 {
-                    if (!target.IsDead &&
-                        Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() ==
-                        "leblancchaosorbm")
+                    if (!target.IsDead)
                     {
-                        CastR(target, false);
+                        CastR(target, false, SpellSlot.Q);
                         Core.DelayAction(() =>
                         {
                             if (!target.IsDead &&
                                 Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() ==
-                                "leblancslide")
+                                "leblancw")
                             {
                                 CastW(target, false);
                                 Core.DelayAction(() =>
@@ -195,7 +212,7 @@ namespace LelBlanc.Modes
                                         ResetW = UseReturn;
                                     }
                                     else if (Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() ==
-                                             "leblancslidereturn")
+                                             "leblancwreturn")
                                     {
                                         ResetW = UseReturn;
                                     }
@@ -217,13 +234,12 @@ namespace LelBlanc.Modes
             }
         }
 
-
         private static void CastW(AIHeroClient target, bool useWReturn)
         {
             if (!Program.W.IsReady()) return;
 
             if (Program.W.IsInRange(target) &&
-                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancslide")
+                Player.Instance.Spellbook.GetSpell(SpellSlot.W).Name.ToLower() == "leblancw")
             {
                 Program.W.Cast(target);
                 if (UseReturn)
@@ -243,38 +259,45 @@ namespace LelBlanc.Modes
             }
         }
 
-
-        private static void CastR(AIHeroClient target, bool useWReturn)
+        private static void CastR(AIHeroClient target, bool useWReturn, SpellSlot spell)
         {
-            if (!Program.RReturn.IsReady())
+            if (!Program.RActive.IsReady())
             {
                 return;
             }
 
-            // Q
-            if (UseQr && Program.QUltimate.IsInRange(target) &&
-                Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancchaosorbm")
-            {
-                Program.QUltimate.Cast(target);
-            }
+            Program.RActive.Cast();
 
-            // W
-            if (UseWr && Program.WUltimate.IsInRange(target) &&
-                Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancslidem")
+            Core.DelayAction(() =>
             {
-                Program.WUltimate.Cast(target);
-                if (UseReturn2)
+                switch (spell)
                 {
-                    ResetW = useWReturn;
+                    case SpellSlot.Q:
+                        if (UseQr && Program.QUltimate.IsInRange(target))
+                        {
+                            Program.QUltimate.Cast(target);
+                        }
+                        break;
+                    case SpellSlot.W:
+                        if (UseWr && Program.WUltimate.IsInRange(target))
+                        {
+                            Program.WUltimate.Cast(target);
+                            if (UseReturn2)
+                            {
+                                ResetW = useWReturn;
+                            }
+                        }
+                        break;
+                    case SpellSlot.E:
+                        if (UseEr && Program.EUltimate.IsInRange(target))
+                        {
+                            Program.EUltimate.Cast(target);
+                        }
+                        break;
                 }
-            }
-
-            // E
-            if (UseEr && Program.EUltimate.IsInRange(target) &&
-                Player.Instance.Spellbook.GetSpell(SpellSlot.R).Name.ToLower() == "leblancsoulshacklem")
-            {
-                Program.EUltimate.Cast(target);
-            }
+            }, Program.RActive.CastDelay);
         }
+
+        #endregion
     }
 }

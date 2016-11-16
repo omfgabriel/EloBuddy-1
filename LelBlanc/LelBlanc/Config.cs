@@ -45,7 +45,7 @@ namespace LelBlanc
             ComboMenu.Add("useReturn2", new CheckBox("Use WR Return", false));
             ComboMenu.Add("useER", new CheckBox("Use ER", false));
             ComboMenu.AddLabel("Extra Settings");
-            ComboMenu.Add("mode", new ComboBox("Combo Modes", 0, LogicModes));
+            ComboMenu.Add("mode", new ComboBox("Combo Modes", 2, LogicModes));
             ComboMenu.AddLabel("Burst Logic Settings");
             ComboMenu.Add("minRange", new CheckBox("Use Q -> R only if W is in range", false));
 
@@ -67,15 +67,12 @@ namespace LelBlanc
 
             LaneClearMenu = ConfigMenu.AddSubMenu("Laneclear Menu", "lcMenu");
             LaneClearMenu.AddLabel("Spell Settings");
-            LaneClearMenu.Add("useQ", new CheckBox("Use Q", false));
+            LaneClearMenu.Add("useQ", new CheckBox("Use Q"));
             LaneClearMenu.Add("useW", new CheckBox("Use W"));
+            LaneClearMenu.Add("sliderQ", new Slider("Use Q if Kill {0} Minions", 3, 1, 5));
             LaneClearMenu.Add("sliderW", new Slider("Use W if Kill {0} Minions", 3, 1, 5));
-            LaneClearMenu.AddLabel("R Settings");
-            LaneClearMenu.Add("useQR", new CheckBox("Use QR", false));
-            LaneClearMenu.Add("useWR", new CheckBox("Use WR"));
-            LaneClearMenu.Add("sliderWR", new Slider("Use WR if Kill {0} Minions", 5, 1, 5));
 
-            JungleClearMenu = ConfigMenu.AddSubMenu("Jungleclear Menu", "jcMenu");
+            /*JungleClearMenu = ConfigMenu.AddSubMenu("Jungleclear Menu", "jcMenu");
             JungleClearMenu.AddLabel("Spell Settings");
             JungleClearMenu.Add("useQ", new CheckBox("Use Q"));
             JungleClearMenu.Add("useW", new CheckBox("Use W"));
@@ -85,7 +82,7 @@ namespace LelBlanc
             JungleClearMenu.Add("useQR", new CheckBox("Use QR"));
             JungleClearMenu.Add("useWR", new CheckBox("Use WR"));
             JungleClearMenu.Add("useER", new CheckBox("Use ER"));
-            JungleClearMenu.Add("sliderWR", new Slider("Use WR if Hit {0} Minions", 5, 1, 5));
+            JungleClearMenu.Add("sliderWR", new Slider("Use WR if Hit {0} Minions", 5, 1, 5));*/
 
             KillStealMenu = ConfigMenu.AddSubMenu("Killsteal Menu", "ksMenu");
             KillStealMenu.AddLabel("Spell Settings");
