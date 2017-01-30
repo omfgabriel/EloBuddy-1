@@ -159,8 +159,8 @@
 
                     if (target != null && target.IsValidTarget())
                     {
-                        if (Player.Instance.Distance(target) <= Essentials.MinigunRange &&
-                            target.CountEnemiesInRange(100) <
+                        if ((target.Distance(Player.Instance) - target.BoundingRadius - Player.Instance.BoundingRadius) <= Essentials.MinigunRange &&
+                            target.CountEnemyChampionsInRange(100) <
                             Config.ComboMenu["qCountC"].Cast<Slider>().CurrentValue)
                         {
                             Program.Q.Cast();
