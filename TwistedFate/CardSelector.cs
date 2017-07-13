@@ -74,7 +74,7 @@ namespace TwistedBuddy
             var wState = ObjectManager.Player.Spellbook.CanUseSpell(SpellSlot.W);
 
             if ((wState == SpellState.Ready &&
-                 wName == "PickACard" &&
+                 //wName == "PickACard" &&
                  (Status != SelectStatus.Selecting || Environment.TickCount - LastW > 500)) ||
                 ObjectManager.Player.IsDead)
             {
